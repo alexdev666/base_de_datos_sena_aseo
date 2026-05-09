@@ -1,4 +1,3 @@
--- Base de Datos de Juan David Martinez y Daniel Andrade
 create database if not exists sena_aseo;
 use sena_aseo;
 
@@ -6,12 +5,11 @@ use sena_aseo;
 -- ESTAS SERAN LAS TABLAS DE LOS DATOS YA DEFINIDOS / TABLAS MAESTRAS
 -- --------------------------------------------------------------------
 
-Create table rol (id_rol int primary key, Roles varchar (40));
+Create table rol (id_rol int UNSIGNED primary key, Roles varchar (40));
     insert into rol () values 
-    (1, 'Aprendiz'),
-    (2, 'vocero'),
-    (3, 'instructor lider'), 
-    (4, 'instructor transversal');
+    (1, 'Administrador'),
+    (2, 'Instructor'),
+    (3, 'Aprendiz');
 
 create table estado (id_estado int primary key, descripcion_estado varchar (30));
     insert into estado () values 
@@ -47,6 +45,35 @@ descripcion_realizado varchar(30)
 -- APARTIR DE ACA SON TABLAS DE USUARIOS Y FUNCIONALIDADES 
 -- ---------------------------------------------------------
 
+
+CREATE TABLE usuario (
+    id_usuario INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+
+ 
+	nombres VARCHAR(100) NOT NULL,
+    apellidos VARCHAR(100) NOT NULL,
+
+   	n_documento VARCHAR(20) NOT NULL UNIQUE,
+    n_telefono VARCHAR(20),
+
+    email_correo VARCHAR(150) NOT NULL UNIQUE,
+    clave VARCHAR(255),
+    estado_usuario BOOLEAN DEFAULT 1,
+
+    id_rol INT UNSIGNED NOT NULL,
+
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_usuario_rol
+        FOREIGN KEY (id_rol) 
+        REFERENCES rol(id_rol)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+
+
+
 create table ficha (
     numero_ficha varchar(30) primary key unique, 
     Nombre varchar (50) not null, 
@@ -58,52 +85,101 @@ create table ficha (
     foreign key (jornada) references jornada(id_jornada)
     );
 
-create table instructor (
-    id_instructor int primary key,
-    nombres varchar(50) not null, 
-    apellidos varchar(50) not null, 
-    telefono varchar (17) not null, 
-    correo varchar (100) not null,
-    clave varchar (255) not null,
-    rol int not null, 
-    foreign key (rol) references rol(id_rol)
+CREATE TABLE instructor (
+    id_instructor INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    id_usuario INT UNSIGNED NOT NULL UNIQUE,
+
+    CONSTRAINT fk_instructor_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES usuario(id_usuario)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+
+) ENGINE=InnoDB;
+
+CREATE TABLE aprendiz (
+    id_aprendiz INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    id_usuario INT UNSIGNED NOT NULL UNIQUE,
+    ficha varchar(30)  NULL,
+
+    CONSTRAINT fk_aprendiz_usuario
+        FOREIGN KEY (id_usuario)
+        REFERENCES usuario(id_usuario)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_aprendiz_ficha
+        FOREIGN KEY (ficha)
+        REFERENCES ficha(numero_ficha)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
+);
+
+CREATE TABLE instructor_ficha (
+
+    id_instructor INT UNSIGNED NOT NULL,
+    ficha varchar(30)  NOT NULL,
+
+    tipo_instructor ENUM('Líder', 'Transversal')
+    DEFAULT 'Transversal',
+
+    PRIMARY KEY (id_instructor, ficha),
+
+    CONSTRAINT fk_if_instructor
+        FOREIGN KEY (id_instructor)
+        REFERENCES instructor(id_instructor)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_if_ficha
+        FOREIGN KEY (ficha)
+        REFERENCES ficha(numero_ficha)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE
+);
+    CREATE TABLE historial_vocero (
+
+    id_historial_vocero INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+
+    id_aprendiz INT UNSIGNED NOT NULL,
+    ficha varchar(30)  NOT NULL,
+
+    fecha_inicio DATE NOT NULL,
+    fecha_finalizacion DATE,
+
+    estado_voceria ENUM('Activo', 'Finalizado')
+    DEFAULT 'Activo',
+
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_hv_aprendiz
+        FOREIGN KEY (id_aprendiz)
+        REFERENCES aprendiz(id_aprendiz)
+        ON UPDATE CASCADE
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_hv_ficha
+        FOREIGN KEY (ficha)
+        REFERENCES ficha(numero_ficha)
+        ON UPDATE CASCADE
+        ON DELETE RESTRICT
     );
 
-CREATE table imparte(
-    id_instructor int not null, 
-    id_ficha varchar(30) not null, 
-    foreign key (id_instructor) references instructor (id_instructor),
-    foreign key (id_ficha) references ficha (numero_ficha)
-    );
-
-create table aprendiz (
-    id_aprendiz int primary key,
-    nombres varchar (50) not null, 
-    apellidos varchar (50) not null, 
-    telefono varchar (17) not null, 
-    correo varchar(100) not null, 
-    ficha varchar (30) not null, 
-    rol int not null,
-    foreign key (rol) references rol(id_rol), 
-    foreign key (ficha) references ficha(numero_ficha), 
-    unique key (id_aprendiz, ficha) 
-    );
-
-create table asistencia (
+    create table asistencia (
     id_asistencia int primary key auto_increment, 
-    fecha date , 
+    fecha date DEFAULT (CURRENT_DATE), 
     ficha varchar (30),
     foreign key (ficha) references ficha (numero_ficha), 
     unique key (fecha, ficha)
     );
 
-
 -- -----------------------------------------------------------------------------------------------------------
 -- ESTA FUNCION ES UN TRIGGER Y SIRVE PARA LLEVAR LA ID DE LA ASISTENCIA, LOS APRENDICES DE LA FICHA PUESTA, 
--- O SEA EL LUGAR DONDE SE VA A TOMAR LA ASISTENCIA
+-- OSEA EL LUGAR DONDE SE VA A TOMAR LA ASISTENCIA
 -- -----------------------------------------------------------------------------------------------------------
 
- DELIMITER $$
 
 DELIMITER //
 CREATE TRIGGER poblar_asistencia_aprendiz
@@ -125,9 +201,17 @@ END;
 //
 DELIMITER ;
 
+
+-- -----------------------------------------------------------------------------------------------------------
+-- fin del trigger
+-- -----------------------------------------------------------------------------------------------------------
+
+
+
+
 CREATE TABLE asistencia_aprendiz (
     id_asistencia INT NOT NULL,
-    id_aprendiz   INT NOT NULL,
+    id_aprendiz   INT UNSIGNED NOT NULL,
     estado        INT NOT NULL ,
 	ficha 		varchar(30) not null,
     PRIMARY KEY (id_asistencia, id_aprendiz),        
@@ -144,7 +228,7 @@ CREATE TABLE asistencia_aprendiz (
  create table sorteo (
     id_sorteo int primary key auto_increment, 
     aprendices_sorteados int , 
-    salon varchar(20) not null, 
+    salon int not null, 
     foreign key (salon) references salon (id_salon) 
     );
  
@@ -152,14 +236,14 @@ create table turno_realizado (
     id_turno_realizado int primary key auto_increment, 
     estado_aseo int not null, 
     sorteo int not null, 
-    id_aprendiz int,
+    id_aprendiz int UNSIGNED not null,
     foreign key (estado_aseo) references estado_aseo (id_estado_aseo),
     foreign key (sorteo) references sorteo (id_sorteo),
     foreign key (id_aprendiz) references aprendiz(id_aprendiz)
     );
 
 CREATE TABLE ciclo_sorteo (
-    id_aprendiz INT NOT NULL, 
+    id_aprendiz INT UNSIGNED NOT NULL, 
     ficha VARCHAR(30) NOT NULL, 
     estado_aseo INT NOT NULL DEFAULT 2, 
     ciclo INT NOT NULL DEFAULT 0,
@@ -169,23 +253,104 @@ CREATE TABLE ciclo_sorteo (
     FOREIGN KEY (estado_aseo) REFERENCES estado_aseo(id_estado_aseo)
 );
 
+-- =================================================================
+-- PROCEDURE OTORGADO POR LA IA PARA CREAR USUARIOS AUTOMATICAMENTE
+-- =================================================================
 
+DELIMITER $$
+
+CREATE PROCEDURE sp_crear_usuario(
+    IN p_nombres VARCHAR(100),
+    IN p_apellidos VARCHAR(100),
+    IN p_n_documento VARCHAR(20),
+    IN p_n_telefono VARCHAR(20),
+    IN p_email VARCHAR(150),
+    IN p_clave VARCHAR(255),
+    IN p_id_rol INT,
+    IN p_ficha varchar(30),
+    IN p_tipo_instructor VARCHAR(11)
+)
+BEGIN
+    DECLARE v_id_usuario   INT UNSIGNED;
+    DECLARE v_id_instructor INT UNSIGNED;
+
+    -- El INSERT dispara los triggers automaticamente
+    INSERT INTO usuario (
+        nombres, apellidos, n_documento, n_telefono,
+        email_correo, clave, id_rol
+    )
+    VALUES (
+        p_nombres, p_apellidos, p_n_documento, p_n_telefono,
+        p_email, p_clave, p_id_rol
+    );
+
+    SET v_id_usuario = LAST_INSERT_ID();
+
+    -- Si es aprendiz, asignamos la ficha
+    IF p_id_rol = 3 AND p_ficha IS NOT NULL THEN
+        UPDATE aprendiz
+        SET ficha = p_ficha
+        WHERE id_usuario = v_id_usuario;
+    END IF;
+
+    -- Si es instructor, conectamos a instructor_ficha
+    IF p_id_rol = 2 AND p_ficha IS NOT NULL THEN
+
+        -- El trigger ya creo el registro en instructor, solo lo buscamos
+        SELECT id_instructor INTO v_id_instructor
+        FROM instructor
+        WHERE id_usuario = v_id_usuario;
+
+        INSERT INTO instructor_ficha (id_instructor, ficha, tipo_instructor)
+        VALUES (v_id_instructor, p_ficha, p_tipo_instructor);
+
+    END IF;
+
+END$$
+
+DELIMITER ;
+
+
+DELIMITER $$
+
+CREATE TRIGGER trg_usuario_instructor
+AFTER INSERT ON usuario
+FOR EACH ROW
+BEGIN
+
+    IF NEW.id_rol = 2 THEN
+
+        INSERT INTO instructor (id_usuario)
+        VALUES (NEW.id_usuario);
+
+    END IF;
+
+END$$
+
+DELIMITER ;
+
+DELIMITER $$
+
+CREATE TRIGGER trg_usuario_aprendiz
+AFTER INSERT ON usuario
+FOR EACH ROW
+BEGIN
+
+    IF NEW.id_rol = 3 THEN
+
+        INSERT INTO aprendiz (id_usuario)
+        VALUES (NEW.id_usuario);
+
+    END IF;
+
+END$$
+
+DELIMITER ;
 -- ----------------------------------------------------
 -- DATOS INGRESADOS DE MANERA ARBITRARIA PARA TESTEOS
 -- ----------------------------------------------------
 
-use sena_aseo;
-insert into ficha values
-('213',	'tecnico en electricidad',	'2026-04-30',	'2026-11-30',	2,	2),
-('222',	'auxiliar en enfermeria',	'2026-04-30',	'2026-09-30',	1,	3),
-('231', 'tecnologo en contabilidad',	'2026-04-30',	'2027-04-30',	3,	1),
-('3238063',	'Analisis y desarrollo de software',	'2026-04-30',	'2027-04-30',	1,	1),
-('432',	'operario en cargas pesadas',	'2026-04-30',	'2026-08-30',	2,	4);
 
-insert into aprendiz (id_aprendiz, nombres, apellidos, telefono, correo, ficha, rol) values
-(1010135940,'Daniel','Andrade',3015649852,'daniel.andrade@gmail.com',3238063, 1),
-(1070585723,'Juan','Martinez',3105678954,'juan.martinez@gmail.com',3238063, 1),
-(1070587388,'Haider','Capera',3154786985,'jose.capera@hotmail.com',3238063, 1);
 -- -----------------------------------
 -- SECCION DE CODIGO SOBRE EL SORTEO
 -- -----------------------------------
@@ -193,7 +358,7 @@ insert into aprendiz (id_aprendiz, nombres, apellidos, telefono, correo, ficha, 
 DELIMITER //
 CREATE PROCEDURE realizar_sorteo(
     IN p_ficha    VARCHAR(30),
-    IN p_salon    VARCHAR(20),
+    IN p_salon    int,
     IN p_cantidad INT
 )
 BEGIN
@@ -217,12 +382,12 @@ BEGIN
     SELECT COUNT(*) INTO pendientes
     FROM ciclo_sorteo
     WHERE ficha = p_ficha
-      AND realizado = 2;
+      AND estado_aseo = 2;
 
     -- 2. Reset si ya todos pasaron
     IF pendientes = 0 THEN
         UPDATE ciclo_sorteo
-        SET realizado = 2,
+        SET estado_aseo = 2,
             ciclo = ciclo + 1
         WHERE ficha = p_ficha;
     END IF;
@@ -233,7 +398,7 @@ BEGIN
     SET v_id_sorteo = LAST_INSERT_ID();
 
     -- 4. Insertar aprendices sorteados filtrando por estado=1 de la sesión actual
-    INSERT INTO turno_realizado (realizado, sorteo, id_aprendiz)
+    INSERT INTO turno_realizado (estado_aseo, sorteo, id_aprendiz)
     SELECT 1, v_id_sorteo, cs.id_aprendiz
     FROM ciclo_sorteo cs
     INNER JOIN asistencia_aprendiz aa 
@@ -241,14 +406,14 @@ BEGIN
         AND aa.id_asistencia = v_id_asistencia
     WHERE cs.ficha = p_ficha
       AND aa.estado = 1
-      AND cs.realizado = 2
+      AND cs.estado_aseo = 2
     ORDER BY RAND()
     LIMIT p_cantidad;
 
     -- 5. Marcar como realizado = 1 en ciclo_sorteo
     UPDATE ciclo_sorteo cs
     INNER JOIN turno_realizado tr ON cs.id_aprendiz = tr.id_aprendiz
-    SET cs.realizado = 1
+    SET cs.estado_aseo = 1
     WHERE cs.ficha = p_ficha
       AND tr.sorteo = v_id_sorteo;
 
@@ -258,25 +423,19 @@ BEGIN
     -- 6. Mostrar sorteados
     SELECT 
         a.id_aprendiz,
-        a.nombres,
-        a.apellidos,
+        u.nombres,
+        u.apellidos,
         cs.ciclo,
         'Sorteado ✓' AS estado_sorteo
     FROM turno_realizado tr
     INNER JOIN aprendiz a ON tr.id_aprendiz = a.id_aprendiz
+    INNER JOIN usuario u ON a.id_usuario = u.id_usuario
     INNER JOIN ciclo_sorteo cs 
         ON cs.id_aprendiz = a.id_aprendiz
         AND cs.ficha = p_ficha
     WHERE tr.sorteo = v_id_sorteo;
 END //
 DELIMITER ;
-/*
-SELECT * FROM sena_aseo.instructor;
-use sena_aseo;
-insert into instructor (id_instructor, nombres, apellidos, telefono, correo, clave, rol) values
-(11305904, 'Jose', 'Alfonso', 3001009988, 'jalfonso@gmail.com', 'tukiTuki','3238063', 2);
-*/
-#--------------------------------------------------------------------------------------------------------------
--- SE LLAMA AL PROCEDURE 'realizar_sorteo' con los datos *en orden* de: id_ficha, id_salon, cantidad a sortear
--- ------------------------------------------------------------------------------------------------------------
-call realizar_sorteo ('231', 1, 2)
+
+
+
