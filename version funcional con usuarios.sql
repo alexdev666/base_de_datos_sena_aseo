@@ -263,8 +263,6 @@ CREATE PROCEDURE sp_crear_usuario(
     IN p_nombres VARCHAR(100),
     IN p_apellidos VARCHAR(100),
     IN p_n_documento VARCHAR(20),
-    IN p_n_telefono VARCHAR(20),
-    IN p_email VARCHAR(150),
     IN p_clave VARCHAR(255),
     IN p_id_rol INT,
     IN p_ficha varchar(30),
@@ -276,12 +274,10 @@ BEGIN
 
     -- El INSERT dispara los triggers automaticamente
     INSERT INTO usuario (
-        nombres, apellidos, n_documento, n_telefono,
-        email_correo, clave, id_rol
+        nombres, apellidos, n_documento, clave, id_rol
     )
     VALUES (
-        p_nombres, p_apellidos, p_n_documento, p_n_telefono,
-        p_email, p_clave, p_id_rol
+        p_nombres, p_apellidos, p_n_documento, p_clave, p_id_rol
     );
 
     SET v_id_usuario = LAST_INSERT_ID();
