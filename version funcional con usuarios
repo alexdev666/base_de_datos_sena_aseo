@@ -382,7 +382,7 @@ BEGIN
     SELECT COUNT(*) INTO pendientes
     FROM ciclo_sorteo
     WHERE ficha = p_ficha
-      AND estado_aseo = 2;
+    AND estado_aseo = 2;
 
     -- 2. Reset si ya todos pasaron
     IF pendientes = 0 THEN
